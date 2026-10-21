@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Каталог новых автомобилей — ГК «Нижегородец»</title>
+<meta name="description" content="Все новые автомобили ГК «Нижегородец» в наличии: фильтры по марке, модели, цене, коробке и приводу. Цены и наличие из живого фида.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%274%27 fill=%27%231E3A5F%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap header-in">
+    <a class="logo" href="index.html"><span class="mark"></span>Нижегородец</a>
+    <nav class="nav">
+      <a href="catalog.html" class="on">Каталог</a>
+      <a href="index.html#credit">Кредит</a>
+      <a href="index.html#tradein">Trade-in</a>
+      <a href="index.html#service">Сервис</a>
+    </nav>
+    <div class="header-right">
+      <div class="phone">8 800 000-00-00<span>звонок бесплатный</span></div>
+      <a class="btn" href="tel:88000000000">Позвонить</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h1 class="rv" style="margin-top:30px">Каталог новых автомобилей</h1>
+  <p class="sub rv">Живой фид ГК «Нижегородец» — цены и наличие на сегодня</p>
+
+  <!-- filters -->
+  <div class="filters rv">
+    <div><label>Марка</label><select id="f-make"><option value="">Все марки</option></select></div>
+    <div><label>Модель</label><select id="f-model"><option value="">Все модели</option></select></div>
+    <div><label>Цена до</label><select id="f-price">
+      <option value="">Любая</option>
+      <option value="1500000">до 1,5 млн ₽</option>
+      <option value="2000000">до 2 млн ₽</option>
+      <option value="2500000">до 2,5 млн ₽</option>
+      <option value="3000000">до 3 млн ₽</option>
+      <option value="4000000">до 4 млн ₽</option>
+    </select></div>
+    <div><label>Коробка</label><select id="f-gear"><option value="">Любая</option></select></div>
+    <div><label>Привод</label><select id="f-drive"><option value="">Любой</option></select></div>
+    <div><label>Сортировка</label><select id="f-sort">
+      <option value="price-asc">Сначала дешевле</option>
+      <option value="price-desc">Сначала дороже</option>
+      <option value="disc-desc">Максимальная выгода</option>
+    </select></div>
+    <div class="f-actions">
+      <button class="btn btn--ghost" id="f-reset" type="button">Сбросить</button>
+    </div>
+  </div>
+
+  <div class="results-line rv">
+    <b id="res-count">…</b> <span class="sub" style="margin:0">автомобилей по фильтру</span>
+  </div>
+
+  <div class="grid" id="catalog-grid"></div>
+
+  <div class="more-wrap">
+    <button class="btn" id="more" type="button" style="display:none">Показать ещё</button>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>Новые автомобили</h4>
+        <a href="catalog.html">Каталог</a><a href="index.html#credit">Кредит</a><a href="index.html#tradein">Trade-in</a>
+      </div>
+      <div>
+        <h4>Авто с пробегом</h4>
+        <a href="catalog.html">Каталог с пробегом</a><a href="index.html#tradein">Выкуп</a><a href="index.html#tradein">Комиссия</a>
+      </div>
+      <div>
+        <h4>Города</h4>
+        <a href="#">Нижний Новгород</a><a href="#">Москва</a><a href="#">Саранск</a><a href="#">Арзамас</a>
+      </div>
+      <div>
+        <h4>Группа</h4>
+        <a href="#">О компании</a><a href="index.html#service">Сервис и ТО</a><a href="#">Контакты</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>© ГК «Нижегородец» — официальный дилер · Нижний Новгород, Москва, Саранск, Арзамас</span>
+      <span>8 800 000-00-00 · звонок бесплатный</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script>
+const PAGE = 24;
+let cars = [], shown = 0, filtered = [];
+const $ = id => document.getElementById(id);
+
+function fill(select, values){
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    select.appendChild(o);
+  });
+}
+
+function applyFilters(){
+  const make = $('f-make').value, model = $('f-model').value,
+        maxPrice = +$('f-price').value || Infinity,
+        gear = $('f-gear').value, drive = $('f-drive').value,
+        sort = $('f-sort').value;
+  filtered = cars.filter(c =>
+    (!make || c.make === make) &&
+    (!model || c.model === model) &&
+    c.price <= maxPrice &&
+    (!gear || c.gear === gear) &&
+    (!drive || c.drive === drive)
+  );
+  if (sort === 'price-asc') filtered.sort((a,b) => a.price - b.price);
+  if (sort === 'price-desc') filtered.sort((a,b) => b.price - a.price);
+  if (sort === 'disc-desc') filtered.sort((a,b) => (b.disc||0) - (a.disc||0));
+  shown = 0;
+  $('catalog-grid').innerHTML = '';
+  $('res-count').textContent = NN.fmt(filtered.length);
+  renderMore();
+}
+
+function renderMore(){
+  const next = filtered.slice(shown, shown + PAGE);
+  $('catalog-grid').insertAdjacentHTML('beforeend', next.map(NN.card).join(''));
+  shown += next.length;
+  $('more').style.display = shown < filtered.length ? 'inline-block' : 'none';
+}
+
+NN.load().then(d => {
+  cars = d;
+
+  const makes = [...new Set(cars.map(c => c.make))].sort((a,b) => NN.makeName(a).localeCompare(NN.makeName(b)));
+  makes.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = NN.makeName(m);
+    $('f-make').appendChild(o);
+  });
+  fill($('f-gear'), [...new Set(cars.map(c => c.gear).filter(Boolean))].sort());
+  fill($('f-drive'), [...new Set(cars.map(c => c.drive).filter(Boolean))].sort());
+
+  function refillModels(){
+    const make = $('f-make').value;
+    const models = [...new Set(cars.filter(c => !make || c.make === make).map(c => c.model))].sort();
+    $('f-model').innerHTML = '<option value="">Все модели</option>';
+    fill($('f-model'), models);
+  }
+
+  // URL params
+  const q = new URLSearchParams(location.search);
+  if (q.get('make')) { $('f-make').value = q.get('make'); }
+  refillModels();
+  if (q.get('model')) { $('f-model').value = q.get('model'); }
+
+  ['f-make','f-model','f-price','f-gear','f-drive','f-sort'].forEach(id =>
+    $(id).addEventListener('change', () => { if (id==='f-make') refillModels(); applyFilters(); }));
+  $('f-reset').addEventListener('click', () => {
+    ['f-make','f-model','f-price','f-gear','f-drive'].forEach(id => $(id).value = '');
+    $('f-sort').value = 'price-asc';
+    refillModels(); applyFilters();
+  });
+  $('more').addEventListener('click', renderMore);
+
+  applyFilters();
+}).catch(err => {
+  console.error(err);
+  $('res-count').textContent = '—';
+});
+
+NN.reveal();
+</script>
+</body>
+</html>

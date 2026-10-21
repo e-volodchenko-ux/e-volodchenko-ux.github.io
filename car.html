@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Автомобиль — ГК «Нижегородец»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%274%27 fill=%27%231E3A5F%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap header-in">
+    <a class="logo" href="index.html"><span class="mark"></span>Нижегородец</a>
+    <nav class="nav">
+      <a href="catalog.html">Каталог</a>
+      <a href="index.html#credit">Кредит</a>
+      <a href="index.html#tradein">Trade-in</a>
+      <a href="index.html#service">Сервис</a>
+    </nav>
+    <div class="header-right">
+      <div class="phone">8 800 000-00-00<span>звонок бесплатный</span></div>
+      <a class="btn" href="tel:88000000000">Позвонить</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" id="car-root">
+  <div class="msg-404" id="not-found" style="display:none">
+    <h2>Автомобиль не найден</h2>
+    <p class="sub">Возможно, он уже продан — фид обновляется ежедневно.</p>
+    <p style="margin-top:18px"><a class="btn" href="catalog.html">Перейти в каталог</a></p>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="section">
+    <h2 class="rv">Похожие автомобили</h2>
+    <div class="grid" id="similar"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>Новые автомобили</h4>
+        <a href="catalog.html">Каталог</a><a href="index.html#credit">Кредит</a><a href="index.html#tradein">Trade-in</a>
+      </div>
+      <div>
+        <h4>Авто с пробегом</h4>
+        <a href="catalog.html">Каталог с пробегом</a><a href="index.html#tradein">Выкуп</a><a href="index.html#tradein">Комиссия</a>
+      </div>
+      <div>
+        <h4>Города</h4>
+        <a href="#">Нижний Новгород</a><a href="#">Москва</a><a href="#">Саранск</a><a href="#">Арзамас</a>
+      </div>
+      <div>
+        <h4>Группа</h4>
+        <a href="#">О компании</a><a href="index.html#service">Сервис и ТО</a><a href="#">Контакты</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>© ГК «Нижегородец» — официальный дилер · Нижний Новгород, Москва, Саранск, Арзамас</span>
+      <span>8 800 000-00-00 · звонок бесплатный</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script>
+const id = new URLSearchParams(location.search).get('id');
+
+NN.load().then(cars => {
+  const car = cars.find(c => c.id === id);
+  const root = document.getElementById('car-root');
+  if (!car){
+    document.getElementById('not-found').style.display = 'block';
+    return;
+  }
+
+  document.title = NN.makeName(car.make) + ' ' + car.model + ' — ' + NN.price(car) + ' · ГК «Нижегородец»';
+
+  const benefits = [];
+  if (car.disc) benefits.push(['Скидка дилера', '−' + NN.fmt(car.disc) + ' ₽']);
+  if (car.tradein) benefits.push(['Доп. выгода за trade-in', '−' + NN.fmt(car.tradein) + ' ₽']);
+  if (car.credit) benefits.push(['Выгода по кредитной программе', '−' + NN.fmt(car.credit) + ' ₽']);
+
+  const spec = (k,v) => v ? '<div><span>' + k + '</span>' + v + '</div>' : '';
+
+  root.insertAdjacentHTML('beforeend',
+    '<div class="crumbs"><a href="index.html">Главная</a> / <a href="catalog.html">Каталог</a> / ' +
+      '<a href="catalog.html?make=' + encodeURIComponent(car.make) + '">' + NN.makeName(car.make) + '</a> / ' + car.model + '</div>' +
+    '<div class="car-top">' +
+      '<div class="gallery">' +
+        '<div class="gallery__main"><img id="g-main" src="' + car.img[0] + '" alt="' + NN.makeName(car.make) + ' ' + car.model + '"></div>' +
+        '<div class="gallery__thumbs">' + car.img.map((u,i) =>
+          '<img src="' + u + '" data-i="' + i + '"' + (i===0?' class="on"':'') + '>').join('') + '</div>' +
+      '</div>' +
+      '<div class="buybox">' +
+        '<h1 style="font-size:26px">' + NN.makeName(car.make) + ' ' + car.model + '</h1>' +
+        '<p class="sub">' + (car.compl || '') + (car.year ? ' · ' + car.year + ' г.' : '') + '</p>' +
+        '<div style="margin-top:14px"><span class="price-now">' + NN.price(car) + '</span>' +
+          (car.disc ? '<span class="price-old">' + NN.oldPrice(car) + '</span>' : '') + '</div>' +
+        (benefits.length ? '<div class="benefits">' + benefits.map(b =>
+          '<div><span>' + b[0] + '</span><b>' + b[1] + '</b></div>').join('') + '</div>' : '') +
+        '<label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">В кредит: срок <output id="c-term-out">36 мес.</output>, взнос <output id="c-down-out">20%</output></label>' +
+        '<input type="range" id="c-term" min="12" max="84" step="6" value="36" style="width:100%;accent-color:var(--blue)">' +
+        '<input type="range" id="c-down" min="0" max="70" step="5" value="20" style="width:100%;accent-color:var(--blue)">' +
+        '<div style="margin:10px 0 16px;font-size:14px">от <b id="c-pay" style="font-size:22px;color:var(--blue)">—</b> /мес <span style="color:var(--muted)">по ставке 19,9%</span></div>' +
+        '<a class="btn" style="display:block;text-align:center" href="tel:88000000000">Забронировать по телефону</a>' +
+        '<p class="stock-line" style="text-align:center;margin-top:12px">VIN-проверка · ПТС · гарантия дилера</p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="specs">' +
+      spec('Двигатель', (car.fuel||'') + (car.vol ? ', ' + car.vol + ' л' : '')) +
+      spec('Мощность', car.power ? car.power + ' л.с.' : '') +
+      spec('Коробка передач', car.gear) +
+      spec('Привод', car.drive) +
+      spec('Кузов', car.body) +
+      spec('Цвет', car.color) +
+      spec('Год выпуска', car.year) +
+      spec('Пробег', car.km != null ? NN.fmt(car.km) + ' км' : '') +
+    '</div>'
+  );
+
+  // gallery
+  const main = document.getElementById('g-main');
+  document.querySelectorAll('.gallery__thumbs img').forEach(t =>
+    t.addEventListener('click', () => {
+      main.src = t.src;
+      document.querySelectorAll('.gallery__thumbs img').forEach(x => x.classList.remove('on'));
+      t.classList.add('on');
+    }));
+
+  // mini credit calc
+  const term = document.getElementById('c-term'), down = document.getElementById('c-down');
+  function recalc(){
+    const S = Math.round(car.price * (1 - (+down.value)/100));
+    document.getElementById('c-term-out').textContent = term.value + ' мес.';
+    document.getElementById('c-down-out').textContent = down.value + '%';
+    document.getElementById('c-pay').textContent = NN.fmt(NN.annuity(S, 19.9, +term.value)) + ' ₽';
+  }
+  [term, down].forEach(el => el.addEventListener('input', recalc));
+  recalc();
+
+  // similar: same make, nearest price
+  const sim = cars.filter(c => c.id !== car.id && c.make === car.make)
+    .sort((a,b) => Math.abs(a.price - car.price) - Math.abs(b.price - car.price))
+    .slice(0, 5);
+  document.getElementById('similar').innerHTML = sim.map(NN.card).join('');
+}).catch(err => {
+  console.error(err);
+  document.getElementById('not-found').style.display = 'block';
+});
+
+NN.reveal();
+</script>
+</body>
+</html>
