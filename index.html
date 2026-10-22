@@ -40,7 +40,7 @@
   </div>
 
   <h1 class="rv">Новые автомобили в наличии</h1>
-  <p class="sub rv"><b id="live-count">…</b> новых автомобилей в живом фиде ГК «Нижегородец» · цены и наличие обновляются ежедневно</p>
+  <p class="sub rv"><b id="live-count">…</b> новых автомобилей · <span id="live-models">…</span> моделей · по фиду ГК «Нижегородец» от 22.10.2026</p>
 
   <!-- brands -->
   <div class="brands rv" id="brand-chips"></div>
@@ -143,63 +143,57 @@
 
 <script src="site.js"></script>
 <script>
-NN.load().then(cars => {
-  // live count
-  document.getElementById('live-count').textContent = NN.fmt(cars.length);
+NN.load().then(models => {
+  const totalCars = models.reduce((s,m) => s + m.count, 0);
+  document.getElementById('live-count').textContent = NN.fmt(totalCars);
+  document.getElementById('live-models').textContent = models.length;
 
-  // brand chips with counts
+  // brand chips with car counts
   const byMake = {};
-  cars.forEach(c => { (byMake[c.make] = byMake[c.make] || []).push(c); });
+  models.forEach(m => { byMake[m.make] = (byMake[m.make] || 0) + m.count; });
   const priority = ['Haval','Tenet','ВАЗ (LADA)','Jeland','Omoda','Jaecoo','Changan','Esteo','JAC'];
   const makes = Object.keys(byMake).sort((a,b) => {
     const ia = priority.indexOf(a), ib = priority.indexOf(b);
-    return (ia<0?99:ia) - (ib<0?99:ib) || byMake[b].length - byMake[a].length;
+    return (ia<0?99:ia) - (ib<0?99:ib) || byMake[b] - byMake[a];
   });
   document.getElementById('brand-chips').innerHTML =
     makes.map(m => '<a class="chip" href="catalog.html?make=' + encodeURIComponent(m) + '">' +
-      '<span class="dot"></span>' + NN.makeName(m) + ' <b>' + byMake[m].length + '</b></a>').join('') +
+      '<span class="dot"></span>' + NN.makeName(m) + ' <b>' + byMake[m] + '</b></a>').join('') +
     '<a class="chip all" href="catalog.html">Все марки →</a>';
 
-  // hits: min-price car per top models
+  // hits
   const topModels = ['T7','Jolion','C5','J7','CS75 Plus','Vesta','F7','T4L','J6','C7','Dargo','CS35 Max','T8','Granta','U5 Plus'];
   const hits = [];
-  topModels.forEach(m => {
-    const list = cars.filter(c => c.model === m).sort((a,b) => a.price - b.price);
-    if (list.length) hits.push(list[0]);
+  topModels.forEach(name => {
+    const m = models.find(x => x.model === name);
+    if (m) hits.push(m);
   });
-  document.getElementById('hits').innerHTML = hits.map(NN.card).join('');
+  document.getElementById('hits').innerHTML = hits.map(NN.modelCard).join('');
 
-  // band scroller: top discounts
-  const hot = cars.filter(c => c.disc > 0).sort((a,b) => b.disc - a.disc).slice(0,6);
-  document.getElementById('band-scroller').innerHTML = hot.map(NN.card).join('');
+  // band: top discounts
+  const hot = models.filter(m => m.min.disc > 0).sort((a,b) => b.min.disc - a.min.disc).slice(0,6);
+  document.getElementById('band-scroller').innerHTML = hot.map(NN.modelCard).join('');
 
   // calculator
   const sel = document.getElementById('calc-car');
-  const uniq = [];
-  const seen = new Set();
-  cars.slice().sort((a,b) => a.price - b.price).forEach(c => {
-    const key = c.make + '|' + c.model;
-    if (seen.has(key)) return;
-    seen.add(key);
-    uniq.push(c);
-  });
-  sel.innerHTML = uniq.map(c =>
-    '<option value="' + c.id + '">' + NN.makeName(c.make) + ' ' + c.model + ' — ' + NN.price(c) + '</option>').join('');
-  sel.selectedIndex = Math.min(5, uniq.length-1);
+  const sorted = models.slice().sort((a,b) => a.min.price - b.min.price);
+  sel.innerHTML = sorted.map((m,i) =>
+    '<option value="' + i + '">' + NN.makeName(m.make) + ' ' + m.model + ' — от ' + NN.priceStr(m.min.price) + '</option>').join('');
+  sel.selectedIndex = Math.min(5, sorted.length-1);
 
   const down = document.getElementById('calc-down'),
         term = document.getElementById('calc-term'),
         rate = document.getElementById('calc-rate');
   function recalc(){
-    const car = cars.find(c => c.id === sel.value) || cars[0];
-    const d = Math.min(+down.value, car.price);
-    const S = Math.max(0, car.price - d);
+    const m = sorted[+sel.value] || sorted[0];
+    const d = Math.min(+down.value, m.min.price);
+    const S = Math.max(0, m.min.price - d);
     const pay = NN.annuity(S, +rate.value, +term.value);
     document.getElementById('calc-down-out').textContent = NN.fmt(d) + ' ₽';
     document.getElementById('calc-term-out').textContent = term.value + ' мес.';
     document.getElementById('calc-rate-out').textContent = String(+rate.value).replace('.',',') + '%';
     document.getElementById('calc-pay').textContent = NN.fmt(pay) + ' ₽';
-    document.getElementById('calc-sumline').textContent = 'Сумма кредита: ' + NN.fmt(S) + ' ₽ · ' + NN.makeName(car.make) + ' ' + car.model;
+    document.getElementById('calc-sumline').textContent = 'Сумма кредита: ' + NN.fmt(S) + ' ₽ · ' + NN.makeName(m.make) + ' ' + m.model;
   }
   [sel, down, term, rate].forEach(el => el.addEventListener('input', recalc));
   recalc();
@@ -217,7 +211,8 @@ NN.load().then(cars => {
   });
 }).catch(err => {
   console.error(err);
-  document.getElementById('live-count').textContent = '1 200+';
+  document.getElementById('live-count').textContent = '1 241';
+  document.getElementById('live-models').textContent = '55';
 });
 
 NN.reveal();
