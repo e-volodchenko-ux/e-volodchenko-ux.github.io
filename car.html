@@ -1,13 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Автомобиль — ГК «Нижегородец»</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%274%27 fill=%27%231E3A5F%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231E3A5F'/><rect x='9' y='12' width='14' height='8' rx='1.5' transform='skewX(-14) translate(4 0)' fill='%23F5F0EB'/></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -23,25 +20,21 @@
     </nav>
     <div class="header-right">
       <div class="phone">8 800 000-00-00<span>звонок бесплатный</span></div>
-      <a class="btn" href="tel:88000000000">Позвонить</a>
+      <a class="btn" href="catalog.html">Подобрать авто</a>
     </div>
   </div>
 </header>
 
-<div class="wrap" id="car-root">
-  <div class="msg-404" id="not-found" style="display:none">
-    <h2>Автомобиль не найден</h2>
-    <p class="sub">Возможно, он уже продан — фид обновляется ежедневно.</p>
-    <p style="margin-top:18px"><a class="btn" href="catalog.html">Перейти в каталог</a></p>
-  </div>
+<div class="wrap">
+  <div id="car-root"></div>
 </div>
 
-<div class="wrap">
-  <div class="section">
-    <h2 class="rv">Похожие автомобили</h2>
+<section class="section">
+  <div class="wrap">
+    <h2>Похожие модели</h2>
     <div class="grid" id="similar"></div>
   </div>
-</div>
+</section>
 
 <footer>
   <div class="wrap">
@@ -72,92 +65,89 @@
 
 <script src="site.js"></script>
 <script>
-const id = new URLSearchParams(location.search).get('id');
+const params = new URLSearchParams(location.search);
+const mParam = params.get('m'); // "Make|Model"
 
-NN.load().then(cars => {
-  const car = cars.find(c => c.id === id);
-  const root = document.getElementById('car-root');
-  if (!car){
-    document.getElementById('not-found').style.display = 'block';
-    return;
-  }
+function spec(k, v) { return `<div><span>${k}</span><b>${v}</b></div>`; }
 
-  document.title = NN.makeName(car.make) + ' ' + car.model + ' — ' + NN.price(car) + ' · ГК «Нижегородец»';
+function render(m) {
+  const car = m.min;
+  document.title = `${NN.makeName(m.make)} ${m.model} — ГК «Нижегородец»`;
+  const imgs = (car.img && car.img.length) ? car.img : ['assets/car0.webp'];
+  const monthly = NN.annuity(Math.max(car.price - 300000, 0), 19.9, 60);
 
-  const benefits = [];
-  if (car.disc) benefits.push(['Скидка дилера', '−' + NN.fmt(car.disc) + ' ₽']);
-  if (car.tradein) benefits.push(['Доп. выгода за trade-in', '−' + NN.fmt(car.tradein) + ' ₽']);
-  if (car.credit) benefits.push(['Выгода по кредитной программе', '−' + NN.fmt(car.credit) + ' ₽']);
+  document.getElementById('car-root').innerHTML = `
+  <div class="crumbs"><a href="index.html">Главная</a> / <a href="catalog.html">Каталог</a> / <a href="catalog.html?make=${encodeURIComponent(m.make)}">${NN.makeName(m.make)}</a> / ${m.model}</div>
+  <div class="car-top">
+    <div class="gallery rv">
+      <div class="gallery__main"><img id="g-main" src="${imgs[0]}" alt="${NN.makeName(m.make)} ${m.model}"></div>
+      <div class="gallery__thumbs">
+        ${imgs.map((src, i) => `<img src="${src}" class="${i === 0 ? 'on' : ''}" alt="Фото ${i + 1}" onclick="document.getElementById('g-main').src=this.src;document.querySelectorAll('.gallery__thumbs img').forEach(t=>t.classList.remove('on'));this.classList.add('on')">`).join('')}
+      </div>
+    </div>
+    <div class="buybox rv">
+      <h1>${NN.makeName(m.make)} ${m.model}</h1>
+      <div class="car-sub">${car.year} г. · ${car.compl || 'базовая комплектация'} · В наличии: ${NN.countWord(m.count)}</div>
 
-  const spec = (k,v) => v ? '<div><span>' + k + '</span>' + v + '</div>' : '';
+      <div class="benefits">
+        ${car.disc ? `<div><span>Скидка дилера</span><b>−${NN.fmt(car.disc)} ₽</b></div>` : ''}
+        ${car.tradein ? `<div><span>Выгода trade-in</span><b>−${NN.fmt(car.tradein)} ₽</b></div>` : ''}
+        ${car.credit ? `<div><span>Кредитная программа</span><b>${car.credit}</b></div>` : ''}
+      </div>
 
-  root.insertAdjacentHTML('beforeend',
-    '<div class="crumbs"><a href="index.html">Главная</a> / <a href="catalog.html">Каталог</a> / ' +
-      '<a href="catalog.html?make=' + encodeURIComponent(car.make) + '">' + NN.makeName(car.make) + '</a> / ' + car.model + '</div>' +
-    '<div class="car-top">' +
-      '<div class="gallery">' +
-        '<div class="gallery__main"><img id="g-main" src="' + car.img[0] + '" alt="' + NN.makeName(car.make) + ' ' + car.model + '"></div>' +
-        '<div class="gallery__thumbs">' + car.img.map((u,i) =>
-          '<img src="' + u + '" data-i="' + i + '"' + (i===0?' class="on"':'') + '>').join('') + '</div>' +
-      '</div>' +
-      '<div class="buybox">' +
-        '<h1 style="font-size:26px">' + NN.makeName(car.make) + ' ' + car.model + '</h1>' +
-        '<p class="sub">' + (car.compl || '') + (car.year ? ' · ' + car.year + ' г.' : '') + '</p>' +
-        '<div style="margin-top:14px"><span class="price-now">' + NN.price(car) + '</span>' +
-          (car.disc ? '<span class="price-old">' + NN.oldPrice(car) + '</span>' : '') + '</div>' +
-        (benefits.length ? '<div class="benefits">' + benefits.map(b =>
-          '<div><span>' + b[0] + '</span><b>' + b[1] + '</b></div>').join('') + '</div>' : '') +
-        '<label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">В кредит: срок <output id="c-term-out">36 мес.</output>, взнос <output id="c-down-out">20%</output></label>' +
-        '<input type="range" id="c-term" min="12" max="84" step="6" value="36" style="width:100%;accent-color:var(--blue)">' +
-        '<input type="range" id="c-down" min="0" max="70" step="5" value="20" style="width:100%;accent-color:var(--blue)">' +
-        '<div style="margin:10px 0 16px;font-size:14px">от <b id="c-pay" style="font-size:22px;color:var(--blue)">—</b> /мес <span style="color:var(--muted)">по ставке 19,9%</span></div>' +
-        '<a class="btn" style="display:block;text-align:center" href="tel:88000000000">Забронировать по телефону</a>' +
-        '<p class="stock-line" style="text-align:center;margin-top:12px">VIN-проверка · ПТС · гарантия дилера</p>' +
-      '</div>' +
-    '</div>' +
-    '<div class="specs">' +
-      spec('Двигатель', (car.fuel||'') + (car.vol ? ', ' + car.vol + ' л' : '')) +
-      spec('Мощность', car.power ? car.power + ' л.с.' : '') +
-      spec('Коробка передач', car.gear) +
-      spec('Привод', car.drive) +
-      spec('Кузов', car.body) +
-      spec('Цвет', car.color) +
-      spec('Год выпуска', car.year) +
-      spec('Пробег', car.km != null ? NN.fmt(car.km) + ' км' : '') +
-    '</div>'
-  );
+      <div class="car-price">
+        ${car.disc ? `<span class="price-old">${NN.fmt(car.price + car.disc)} ₽</span>` : ''}
+        <span class="price-now">от ${NN.fmt(car.price)} ₽</span>
+      </div>
 
-  // gallery
-  const main = document.getElementById('g-main');
-  document.querySelectorAll('.gallery__thumbs img').forEach(t =>
-    t.addEventListener('click', () => {
-      main.src = t.src;
-      document.querySelectorAll('.gallery__thumbs img').forEach(x => x.classList.remove('on'));
-      t.classList.add('on');
-    }));
+      <div class="benefits">
+        <div><span>В кредит от</span><b>${NN.fmt(monthly)} ₽/мес</b></div>
+        <div><span>Условия расчёта</span><b>взнос 300 000 ₽ · 60 мес · 19,9%</b></div>
+      </div>
 
-  // mini credit calc
-  const term = document.getElementById('c-term'), down = document.getElementById('c-down');
-  function recalc(){
-    const S = Math.round(car.price * (1 - (+down.value)/100));
-    document.getElementById('c-term-out').textContent = term.value + ' мес.';
-    document.getElementById('c-down-out').textContent = down.value + '%';
-    document.getElementById('c-pay').textContent = NN.fmt(NN.annuity(S, 19.9, +term.value)) + ' ₽';
-  }
-  [term, down].forEach(el => el.addEventListener('input', recalc));
-  recalc();
+      <a class="btn full" href="tel:88000000000">Оставить заявку</a>
+      <p class="buy-note">Цена — от минимальной стоимости комплектации в наличии. Точную комплектацию и выгоду уточняйте у менеджера.</p>
+    </div>
+  </div>
 
-  // similar: same make, nearest price
-  const sim = cars.filter(c => c.id !== car.id && c.make === car.make)
-    .sort((a,b) => Math.abs(a.price - car.price) - Math.abs(b.price - car.price))
+  <h2 style="margin-top:44px">Характеристики базовой комплектации</h2>
+  <div class="specs">
+    ${spec('Двигатель', car.vol ? car.vol + ' л' : '—')}
+    ${spec('Мощность', car.power ? car.power + ' л.с.' : '—')}
+    ${spec('Коробка передач', car.gear || '—')}
+    ${spec('Привод', car.drive || '—')}
+    ${spec('Топливо', car.fuel || 'Бензин')}
+    ${spec('Кузов', car.body || '—')}
+    ${spec('Цвет', car.color || '—')}
+    ${spec('Год выпуска', car.year + ' г.')}
+  </div>`;
+
+  const similar = NN.models()
+    .filter(x => x !== m && (x.make === m.make || Math.abs(x.min.price - car.price) < 400000))
+    .sort((a, b) => Math.abs(a.min.price - car.price) - Math.abs(b.min.price - car.price))
     .slice(0, 5);
-  document.getElementById('similar').innerHTML = sim.map(NN.card).join('');
-}).catch(err => {
-  console.error(err);
-  document.getElementById('not-found').style.display = 'block';
-});
+  document.getElementById('similar').innerHTML = similar.map(NN.modelCard).join('');
+  NN.reveal();
+}
 
-NN.reveal();
+function notFound() {
+  document.getElementById('car-root').innerHTML = `
+    <div class="msg-404">
+      <h1>Модель не найдена</h1>
+      <p style="color:var(--muted);margin:14px 0 22px">Возможно, автомобили этой модели уже проданы. Посмотрите актуальный каталог.</p>
+      <a class="btn" href="catalog.html">Перейти в каталог</a>
+    </div>`;
+}
+
+NN.load().then(() => {
+  let m = null;
+  if (mParam) {
+    const [make, model] = mParam.split('|');
+    m = NN.models().find(x => x.make === make && x.model === (model || ''));
+  }
+  if (!m && !mParam) m = NN.models()[0]; // fallback без параметра
+  if (m) render(m); else notFound();
+}).catch(notFound);
 </script>
 </body>
 </html>
