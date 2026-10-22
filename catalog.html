@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Каталог новых автомобилей — ГК «Нижегородец»</title>
-<meta name="description" content="Все новые автомобили ГК «Нижегородец» в наличии: фильтры по марке, модели, цене, коробке и приводу. Цены и наличие из живого фида.">
+<meta name="description" content="Все новые автомобили ГК «Нижегородец» в наличии: фильтры по марке, модели, цене, коробке и приводу. Цены и наличие из фида дилера.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@
 <div class="wrap">
 
   <h1 class="rv" style="margin-top:30px">Каталог новых автомобилей</h1>
-  <p class="sub rv">Живой фид ГК «Нижегородец» — цены и наличие на сегодня</p>
+  <p class="sub rv">Модельный ряд ГК «Нижегородец» · цены «от» и остатки по фиду от 22.10.2026</p>
 
   <!-- filters -->
   <div class="filters rv">
@@ -52,6 +52,7 @@
       <option value="price-asc">Сначала дешевле</option>
       <option value="price-desc">Сначала дороже</option>
       <option value="disc-desc">Максимальная выгода</option>
+      <option value="stock-desc">Больше всего в наличии</option>
     </select></div>
     <div class="f-actions">
       <button class="btn btn--ghost" id="f-reset" type="button">Сбросить</button>
@@ -59,14 +60,11 @@
   </div>
 
   <div class="results-line rv">
-    <b id="res-count">…</b> <span class="sub" style="margin:0">автомобилей по фильтру</span>
+    <b id="res-count">…</b> <span class="sub" style="margin:0">моделей</span>
+    <span class="sub" style="margin:0">· <b id="res-cars" style="font-size:15px">…</b> авто в наличии</span>
   </div>
 
   <div class="grid" id="catalog-grid"></div>
-
-  <div class="more-wrap">
-    <button class="btn" id="more" type="button" style="display:none">Показать ещё</button>
-  </div>
 
 </div>
 
@@ -99,8 +97,6 @@
 
 <script src="site.js"></script>
 <script>
-const PAGE = 24;
-let cars = [], shown = 0, filtered = [];
 const $ = id => document.getElementById(id);
 
 function fill(select, values){
@@ -111,51 +107,42 @@ function fill(select, values){
   });
 }
 
-function applyFilters(){
-  const make = $('f-make').value, model = $('f-model').value,
-        maxPrice = +$('f-price').value || Infinity,
-        gear = $('f-gear').value, drive = $('f-drive').value,
-        sort = $('f-sort').value;
-  filtered = cars.filter(c =>
-    (!make || c.make === make) &&
-    (!model || c.model === model) &&
-    c.price <= maxPrice &&
-    (!gear || c.gear === gear) &&
-    (!drive || c.drive === drive)
-  );
-  if (sort === 'price-asc') filtered.sort((a,b) => a.price - b.price);
-  if (sort === 'price-desc') filtered.sort((a,b) => b.price - a.price);
-  if (sort === 'disc-desc') filtered.sort((a,b) => (b.disc||0) - (a.disc||0));
-  shown = 0;
-  $('catalog-grid').innerHTML = '';
-  $('res-count').textContent = NN.fmt(filtered.length);
-  renderMore();
-}
+NN.load().then(models => {
+  function applyFilters(){
+    const make = $('f-make').value, model = $('f-model').value,
+          maxPrice = +$('f-price').value || Infinity,
+          gear = $('f-gear').value, drive = $('f-drive').value,
+          sort = $('f-sort').value;
+    const filtered = models.filter(m =>
+      (!make || m.make === make) &&
+      (!model || m.model === model) &&
+      m.min.price <= maxPrice &&
+      (!gear || m.min.gear === gear) &&
+      (!drive || m.min.drive === drive)
+    );
+    if (sort === 'price-asc') filtered.sort((a,b) => a.min.price - b.min.price);
+    if (sort === 'price-desc') filtered.sort((a,b) => b.min.price - a.min.price);
+    if (sort === 'disc-desc') filtered.sort((a,b) => (b.min.disc||0) - (a.min.disc||0));
+    if (sort === 'stock-desc') filtered.sort((a,b) => b.count - a.count);
+    $('res-count').textContent = NN.fmt(filtered.length);
+    $('res-cars').textContent = NN.fmt(filtered.reduce((s,m) => s + m.count, 0));
+    $('catalog-grid').innerHTML = filtered.map(NN.modelCard).join('');
+  }
 
-function renderMore(){
-  const next = filtered.slice(shown, shown + PAGE);
-  $('catalog-grid').insertAdjacentHTML('beforeend', next.map(NN.card).join(''));
-  shown += next.length;
-  $('more').style.display = shown < filtered.length ? 'inline-block' : 'none';
-}
-
-NN.load().then(d => {
-  cars = d;
-
-  const makes = [...new Set(cars.map(c => c.make))].sort((a,b) => NN.makeName(a).localeCompare(NN.makeName(b)));
+  const makes = [...new Set(models.map(m => m.make))].sort((a,b) => NN.makeName(a).localeCompare(NN.makeName(b)));
   makes.forEach(m => {
     const o = document.createElement('option');
     o.value = m; o.textContent = NN.makeName(m);
     $('f-make').appendChild(o);
   });
-  fill($('f-gear'), [...new Set(cars.map(c => c.gear).filter(Boolean))].sort());
-  fill($('f-drive'), [...new Set(cars.map(c => c.drive).filter(Boolean))].sort());
+  fill($('f-gear'), [...new Set(models.map(m => m.min.gear).filter(Boolean))].sort());
+  fill($('f-drive'), [...new Set(models.map(m => m.min.drive).filter(Boolean))].sort());
 
   function refillModels(){
     const make = $('f-make').value;
-    const models = [...new Set(cars.filter(c => !make || c.make === make).map(c => c.model))].sort();
+    const list = [...new Set(models.filter(m => !make || m.make === make).map(m => m.model))].sort();
     $('f-model').innerHTML = '<option value="">Все модели</option>';
-    fill($('f-model'), models);
+    fill($('f-model'), list);
   }
 
   // URL params
@@ -171,7 +158,6 @@ NN.load().then(d => {
     $('f-sort').value = 'price-asc';
     refillModels(); applyFilters();
   });
-  $('more').addEventListener('click', renderMore);
 
   applyFilters();
 }).catch(err => {
