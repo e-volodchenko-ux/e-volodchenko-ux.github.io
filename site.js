@@ -1,63 +1,83 @@
-/* Общий код сайта: данные фида, рендер карточек, анимации */
+/* Общий код сайта: данные фида, рендер карточек, анимации.
+   Источник данных — models-data.json (срез фида по моделям: min-цена, остаток, фото).
+   Фолбэки: живой фид напрямую → CORS-прокси (агрегация в модели на клиенте). */
 window.NN = (function(){
   let _data = null;
 
-  /* Нормализация сырой записи фида в формат сайта */
-  function norm(c){
-    return {
-      id: c.id, make: c.make, model: c.model, year: c.year, price: c.price,
-      km: c.km || 0, color: c.color || '', body: c.body || '', fuel: c.fuel || '',
-      gear: c.gear || '', drive: c.drive || '', power: c.power, vol: c.vol || '',
-      img: (c.img || []).slice(0,6), disc: c.disc || 0,
-      tradein: c.tradein || 0, credit: c.credit || 0, compl: c.compl || ''
-    };
+  /* Агрегация сырого фида в модели (как scripts/build_data.py + группировка) */
+  function aggregate(raw){
+    const groups = {};
+    raw.filter(c => c.new === 1).forEach(c => {
+      const k = c.make + '|' + c.model;
+      (groups[k] = groups[k] || []).push(c);
+    });
+    const models = Object.keys(groups).map(k => {
+      const cars = groups[k].sort((a,b) => a.price - b.price);
+      const mn = cars[0];
+      const make = k.split('|')[0], model = k.split('|')[1];
+      return { make, model, count: cars.length, min: {
+        id: mn.id, price: mn.price, year: mn.year, vol: mn.vol || '',
+        power: mn.power, gear: mn.gear || '', drive: mn.drive || '',
+        fuel: mn.fuel || '', body: mn.body || '', color: mn.color || '',
+        compl: mn.compl || '', disc: mn.disc || 0,
+        tradein: mn.tradein || 0, credit: mn.credit || 0,
+        img: (mn.img || []).slice(0,6)
+      }};
+    });
+    models.sort((a,b) => (a.make + a.model).localeCompare(b.make + b.model));
+    return models;
   }
 
   function load(){
     if (_data) return Promise.resolve(_data);
-    // 1) локальный срез фида (если есть рядом с сайтом)
-    return fetch('cars-data.json')
+    return fetch('models-data.json')
       .then(r => { if(!r.ok) throw new Error('local '+r.status); return r.json(); })
       .catch(() =>
-        // 2) живой фид напрямую (если CORS разрешён / сайт на домене дилера)
         fetch('https://autonnmotors.ru/data/cars.json')
           .then(r => { if(!r.ok) throw new Error('direct '+r.status); return r.json(); })
-          .then(d => d.filter(c => c.new === 1).map(norm))
+          .then(aggregate)
       )
       .catch(() =>
-        // 3) живой фид через CORS-прокси (для GitHub Pages и сторонних хостингов)
         fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://autonnmotors.ru/data/cars.json'))
           .then(r => { if(!r.ok) throw new Error('proxy '+r.status); return r.json(); })
-          .then(d => d.filter(c => c.new === 1).map(norm))
+          .then(aggregate)
       )
       .then(d => { _data = d; return d; });
   }
 
   function fmt(n){ return (n==null ? '' : Number(n).toLocaleString('ru-RU')); }
-  function price(c){ return fmt(c.price) + ' ₽'; }
-  function oldPrice(c){ return c.disc ? fmt(c.price + c.disc) + ' ₽' : ''; }
-  function specs(c){
+  function makeName(m){ return m === 'ВАЗ (LADA)' ? 'Lada' : m; }
+  function priceStr(p){ return fmt(p) + ' ₽'; }
+  function countWord(n){
+    const a = n % 10, b = n % 100;
+    if (a === 1 && b !== 11) return n + ' авто';
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return n + ' авто';
+    return n + ' авто';
+  }
+  function specsOf(c){
     return [c.fuel, c.vol ? c.vol + ' л' : '', c.power ? c.power + ' л.с.' : '']
       .filter(Boolean).join(', ') + ' · ' + (c.gear || '—') + ' · ' + (c.drive || '—');
   }
-  function makeName(m){ return m === 'ВАЗ (LADA)' ? 'Lada' : m; }
+  function modelUrl(m){ return 'car.html?m=' + encodeURIComponent(m.make + '|' + m.model); }
 
-  function badge(c){
-    if (c.disc) return '<span class="badge disc">Выгода ' + fmt(c.disc) + ' ₽</span>';
-    if (c.credit) return '<span class="badge">Льготный кредит</span>';
+  function badge(min){
+    if (min.disc) return '<span class="badge disc">Выгода ' + fmt(min.disc) + ' ₽</span>';
+    if (min.credit) return '<span class="badge">Льготный кредит</span>';
     return '';
   }
 
-  function card(c){
-    return '<a class="card" href="car.html?id=' + encodeURIComponent(c.id) + '">' +
+  /* Карточка модели: min-фото, «от» цена, остаток */
+  function modelCard(m){
+    const c = m.min;
+    return '<a class="card" href="' + modelUrl(m) + '">' +
       '<div class="card__img">' + badge(c) +
-        '<img loading="lazy" src="' + c.img[0] + '" alt="' + makeName(c.make) + ' ' + c.model + '"></div>' +
+        '<img loading="lazy" src="' + c.img[0] + '" alt="' + makeName(m.make) + ' ' + m.model + '"></div>' +
       '<div class="card__body">' +
-        '<div class="card__name">' + makeName(c.make) + ' ' + c.model + '</div>' +
-        '<div class="card__specs">' + specs(c) + '</div>' +
-        '<div class="card__price"><span class="price-now">' + price(c) + '</span>' +
-          (c.disc ? '<span class="price-old">' + oldPrice(c) + '</span>' : '') + '</div>' +
-        '<div class="stock-line">' + (c.compl || '') + '</div>' +
+        '<div class="card__name">' + makeName(m.make) + ' ' + m.model + '</div>' +
+        '<div class="card__specs">' + specsOf(c) + '</div>' +
+        '<div class="card__price">от <span class="price-now">' + priceStr(c.price) + '</span>' +
+          (c.disc ? '<span class="price-old">' + priceStr(c.price + c.disc) + '</span>' : '') + '</div>' +
+        '<div class="stock-line"><b>В наличии:</b> ' + countWord(m.count) + '</div>' +
       '</div></a>';
   }
 
@@ -89,5 +109,5 @@ window.NN = (function(){
     return Math.round(S * r / (1 - Math.pow(1+r, -n)));
   }
 
-  return { load, fmt, price, oldPrice, specs, makeName, card, reveal, counters, annuity };
+  return { load, models: () => _data || [], fmt, makeName, priceStr, countWord, specsOf, modelUrl, modelCard, reveal, counters, annuity };
 })();
